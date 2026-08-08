@@ -2,13 +2,13 @@
 
 Working title: **Aetherpath**  
 Genre: AI-driven dungeon adventure RPG  
-Core fantasy: You choose the story; the world materializes as a hologram between your choices and the unfolding narrative.
+Core fantasy: You choose the story; the world materialises in a holographic format between your choices and the unfolding narrative.
 
 ---
 
 ## 1. Player fantasy (one sentence)
 
-Step into a living dungeon that writes itself around your decisions — story pouring from above, a holographic chamber rematerializing in the middle, and 2–4 paths waiting at your feet.
+Step into a living dungeon that writes itself around your decisions, a holographic chamber rematerialising in the middle, and multiple paths waiting at your feet.
 
 ---
 
@@ -40,12 +40,13 @@ Rules for the first playable surface:
 ## 3. Core gameplay loop
 
 1. Player enters with a free token grant.
-2. AI (or skeleton engine) emits: story beat + 2–4 choices + hologram scene brief.
-3. Player picks a choice → spend tokens → next beat + new hologram.
-4. If tokens are empty → gate: **watch rewarded ad** or **buy token pack**.
-5. Session memory keeps character, inventory, prior beats, and dungeon seed.
+2. AI (or skeleton engine) emits: hologram begins a faint isometric square then a holographic person drops down into that square. Player Creation;
+3. Player chooses their character's appearance or presses random to create a randomly generated character. they choose their player's name. then they can press play at the bottom.
+4. After that the Player is given a choice:
+→ a) stay still and look around (generate 1 square tile semi-ring around player to gain additional visibility of the area around them, which generates 3-5 square tiles around them. 
+→ b) move forward blindly uncovering a 1 square tile ring around them.
 
-Optional later loops: combat checks, inventory puzzles, faction reputation, multi-room maps, shareable run seeds.
+Optional later loops: combat checks, inventory puzzles, reputation, multi-room maps.
 
 ---
 
@@ -102,10 +103,8 @@ packages/shared   Shared types (session, choices, holo brief, economy)
 
 ### M0 — Skeleton (this repo)
 
-- [x] Monorepo + shared contracts
-- [x] Playable three-band UI (story / holo / choices)
-- [x] Offline story engine with branches
-- [x] Token wallet + ad/purchase stubs
+- [ ] Offline story engine with branches
+- [ ] Token wallet + ad/purchase stubs
 - [ ] GitHub remote + CI
 
 ### M1 — True AI turns
