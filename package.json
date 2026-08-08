@@ -1,0 +1,18 @@
+{
+  "name": "aetherpath",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI dungeon adventure RPG — holographic world, player-driven story, token/ad economy",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:web": "pnpm --filter @aetherpath/web dev",
+    "dev:api": "pnpm --filter @aetherpath/api dev",
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
