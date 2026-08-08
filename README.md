@@ -1,8 +1,10 @@
 # Aetherpath
 
-AI dungeon adventure RPG. You steer the story; the world rematerializes as a hologram between scrolling narrative (top) and 2–4 choices (bottom). Continue by spending tokens — buy packs or watch a rewarded ad.
+A dungeon adventure RPG.
+You steer the story; the world materialises holographically on-screen.
+Create your own scrolling narrative, deal with choices, and uncover what lies at the foundations of the deep.
 
-> Working title. See [docs/PLAN.md](./docs/PLAN.md) for the full product and technical plan.
+> Working title. Game is likely to change. See [docs/PLAN.md](./docs/PLAN.md) for the full product and technical plan.
 
 ## Layout
 
@@ -21,26 +23,6 @@ Player choices (2–4)
 | `apps/web` | Vite + React client, React Three Fiber hologram |
 | `apps/api` | Hono API — adventure turns, wallet, ad/purchase stubs |
 | `packages/shared` | Shared TypeScript contracts |
-
-## Quick start
-
-```bash
-pnpm install
-cp .env.example .env
-pnpm dev
-```
-
-- Web: http://localhost:5173  
-- API: http://localhost:8787/health  
-
-The story engine runs offline with authored branches so you can play the loop without an AI key. Token packs and ads are stubbed for local demo (`stub_*` ad receipts).
-
-## Scripts
-
-- `pnpm dev` — API + web in parallel  
-- `pnpm --filter @aetherpath/web dev`  
-- `pnpm --filter @aetherpath/api dev`  
-- `pnpm build`  
 
 ## Roadmap (short)
 
