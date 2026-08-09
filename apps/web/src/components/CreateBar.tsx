@@ -32,10 +32,10 @@ export function CreateBar({
             name="character-name"
             value={name}
             maxLength={24}
-            placeholder="Who walks the vault?"
+            placeholder="Enter a name"
             autoComplete="off"
             autoCorrect="off"
-            autoCapitalize="off"
+            autoCapitalize="words"
             spellCheck={false}
             inputMode="text"
             enterKeyHint="done"
@@ -47,7 +47,18 @@ export function CreateBar({
           />
         </label>
 
-        <div className="create-row">
+        <div className="create-appearance">
+          <div className="create-appearance-head">
+            <span>Look</span>
+            <button
+              type="button"
+              className="create-random"
+              disabled={busy}
+              onClick={onRandom}
+            >
+              Random
+            </button>
+          </div>
           <div className="appearance-swatches" role="listbox" aria-label="Appearance">
             {APPEARANCE_PRESETS.map((preset) => {
               const active =
@@ -72,14 +83,6 @@ export function CreateBar({
               );
             })}
           </div>
-          <button
-            type="button"
-            className="secondary-btn create-random"
-            disabled={busy}
-            onClick={onRandom}
-          >
-            Random
-          </button>
         </div>
 
         <button

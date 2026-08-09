@@ -426,15 +426,19 @@ export function HoloWorld({
   brief,
   appearance = DEFAULT_APPEARANCE,
   dropIn = false,
+  showCaption = true,
 }: {
   brief: HoloSceneBrief;
   appearance?: CharacterAppearance;
   dropIn?: boolean;
+  /** Hide the bottom locale line (e.g. during character create). */
+  showCaption?: boolean;
 }) {
   const span = brief.room
     ? Math.max(brief.room.width, brief.room.height)
     : 3;
   const dist = 4.2 + (span - 3) * 0.55;
+  const caption = brief.locale.trim();
 
   return (
     <section className="holo-pane" aria-label="Holographic world">
@@ -443,10 +447,9 @@ export function HoloWorld({
           <HoloScene brief={brief} appearance={appearance} dropIn={dropIn} />
         </Canvas>
       </div>
-      <div className="holo-caption">
-        {brief.locale}
-        {brief.focal ? ` · ${brief.focal}` : ""}
-      </div>
+      {showCaption && caption ? (
+        <div className="holo-caption">{caption}</div>
+      ) : null}
     </section>
   );
 }

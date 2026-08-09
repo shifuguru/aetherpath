@@ -25,15 +25,14 @@ import {
 
 function creationBrief(appearance: CharacterAppearance): HoloSceneBrief {
   return {
-    locale: "materialising form",
+    locale: "",
     mood: "wonder",
-    props: ["isometric tile", "holographic figure"],
+    props: ["tile", "figure"],
     palette: {
       primary: appearance.primary,
       secondary: "#3d6b7a",
       glow: appearance.glow,
     },
-    focal: "a lone tile receiving your hologram",
     stage: "creation",
     revealedTiles: 1,
   };
@@ -209,9 +208,7 @@ export function App() {
 
   const createBrief = useMemo(() => creationBrief(appearance), [appearance]);
   const statusMessage =
-    phase === "create"
-      ? "Form materialising — name yourself"
-      : latestStatus(session);
+    phase === "create" ? "Name your form" : latestStatus(session);
   const statusSignal =
     phase === "create"
       ? `create-${dropKey}`
@@ -283,6 +280,7 @@ export function App() {
           brief={createBrief}
           appearance={appearance}
           dropIn
+          showCaption={false}
         />
         <CreateBar
           name={playerName}
