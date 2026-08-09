@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AdventureSession,
   CharacterAppearance,
@@ -14,6 +14,8 @@ import {
 import { ChoiceBar } from "./components/ChoiceBar";
 import { CreateBar } from "./components/CreateBar";
 import { HoloWorld } from "./components/HoloWorld";
+import { RunEndOverlay } from "./components/RunEndOverlay";
+import { StatusBar } from "./components/StatusBar";
 import { StoryFeed } from "./components/StoryFeed";
 import { TokenGate } from "./components/TokenGate";
 import {
@@ -23,6 +25,7 @@ import {
   purchasePack,
   startAdventure,
 } from "./lib/api";
+import { playCue, setSoundEnabled } from "./lib/sound";
 
 const CREATION_BEAT: StoryBeat = {
   id: "creation",
@@ -80,6 +83,30 @@ export function App() {
   const [playerName, setPlayerName] = useState("");
   const [appearance, setAppearance] = useState<CharacterAppearance>(DEFAULT_APPEARANCE);
   const [dropKey, setDropKey] = useState(0);
+  const [soundOn, setSoundOn] = useState(true);
+  const soundInitialised = useRef(false);
+
+  useEffect(() => {
+    if (soundInitialised.current) return;
+    soundInitialised.current = true;
+    const stored = typeof localStorage !== "undefined" ? localStorage.getItem("aetherpath:sound") : null;
+    const on = stored !== "off";
+    setSoundOn(on);
+    setSoundEnabled(on);
+  }, []);
+
+  const toggleSound = () => {
+    setSoundOn((prev) => {
+      const next = !prev;
+      setSoundEnabled(next);
+      try {
+        localStorage.setItem("aetherpath:sound", next ? "on" : "off");
+      } catch {
+        // best effort; ignore storage failures (private mode, quota, etc.)
+      }
+      return next;
+    });
+  };
 
   const refreshWallet = useCallback(async () => {
     const data = await getWallet();
@@ -122,6 +149,7 @@ export function App() {
     if (!name || busy) return;
     setBusy(true);
     setError(null);
+    playCue("click");
     try {
       const [{ session: next }, w] = await Promise.all([
         startAdventure({
@@ -141,12 +169,46 @@ export function App() {
     }
   };
 
+  const restart = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    playCue("click");
+    try {
+      const [{ session: next }, w] = await Promise.all([
+        startAdventure({
+          playerName: session?.player.name ?? playerName,
+          className: "Spellblade",
+          appearance: session?.player.appearance ?? appearance,
+        }),
+        refreshWallet(),
+      ]);
+      setSession({ ...next, tokensRemaining: w.tokens });
+      setShowGate(false);
+      setPhase("play");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start a new descent");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onChoose = async (choiceId: string) => {
     if (!session || busy) return;
     setBusy(true);
     setError(null);
+    playCue("click");
     try {
       const { session: next } = await chooseAction(session.id, choiceId);
+
+      if (next.status === "won") playCue("victory");
+      else if (next.status === "lost") playCue("defeat");
+      else if (next.player.hp < session.player.hp) playCue("hit");
+      else if (next.player.hp > session.player.hp) playCue("heal");
+      else if (choiceId.startsWith("door-") || choiceId === "fight" || choiceId === "flee")
+        playCue("door");
+      if (next.player.inventory.length > session.player.inventory.length) playCue("drop");
+
       setSession(next);
       setWallet((prev) =>
         prev
@@ -262,14 +324,25 @@ export function App() {
           <div className="brand">
             Aether<span>path</span>
           </div>
-          <button
-            type="button"
-            className="token-chip"
-            onClick={() => setShowGate(true)}
-            aria-label="Open token wallet"
-          >
-            Tokens <strong>{wallet.tokens}</strong>
-          </button>
+          <div className="top-bar-actions">
+            <button
+              type="button"
+              className="mute-btn"
+              onClick={toggleSound}
+              aria-label={soundOn ? "Mute sound" : "Unmute sound"}
+              title={soundOn ? "Mute sound" : "Unmute sound"}
+            >
+              {soundOn ? "\u266a" : "\u266a\u0338"}
+            </button>
+            <button
+              type="button"
+              className="token-chip"
+              onClick={() => setShowGate(true)}
+              aria-label="Open token wallet"
+            >
+              Tokens <strong>{wallet.tokens}</strong>
+            </button>
+          </div>
         </div>
 
         <StoryFeed beats={[CREATION_BEAT]} />
@@ -308,26 +381,47 @@ export function App() {
         <div className="brand">
           Aether<span>path</span>
         </div>
-        <button
-          type="button"
-          className="token-chip"
-          onClick={() => setShowGate(true)}
-          aria-label="Open token wallet"
-        >
-          Tokens <strong>{session.tokensRemaining}</strong>
-        </button>
+        <div className="top-bar-actions">
+          <button
+            type="button"
+            className="mute-btn"
+            onClick={toggleSound}
+            aria-label={soundOn ? "Mute sound" : "Unmute sound"}
+            title={soundOn ? "Mute sound" : "Unmute sound"}
+          >
+            {soundOn ? "\u266a" : "\u266a\u0338"}
+          </button>
+          <button
+            type="button"
+            className="token-chip"
+            onClick={() => setShowGate(true)}
+            aria-label="Open token wallet"
+          >
+            Tokens <strong>{session.tokensRemaining}</strong>
+          </button>
+        </div>
       </div>
+      <StatusBar player={session.player} />
 
       <StoryFeed beats={session.beats} />
       <HoloWorld
         brief={session.holo}
         appearance={session.player.appearance ?? appearance}
       />
-      <ChoiceBar
-        choices={session.choices}
-        disabled={busy}
-        onChoose={(id) => void onChoose(id)}
-      />
+      {session.status === "won" || session.status === "lost" ? (
+        <RunEndOverlay
+          outcome={session.status}
+          player={session.player}
+          busy={busy}
+          onRestart={() => void restart()}
+        />
+      ) : (
+        <ChoiceBar
+          choices={session.choices}
+          disabled={busy}
+          onChoose={(id) => void onChoose(id)}
+        />
+      )}
 
       {error ? (
         <p className="error-text" style={{ position: "absolute", bottom: "0.25rem", left: "1rem" }}>

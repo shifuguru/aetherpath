@@ -325,6 +325,41 @@ function SparseTiles({
   );
 }
 
+function AetherCore({ glow }: { glow: string }) {
+  const mesh = useRef<Group>(null);
+  useFrame((state) => {
+    if (!mesh.current) return;
+    mesh.current.rotation.y = state.clock.elapsedTime * 0.6;
+    mesh.current.position.y = 0.75 + Math.sin(state.clock.elapsedTime * 1.4) * 0.08;
+  });
+  return (
+    <group ref={mesh} position={[0, 0.75, 0]}>
+      <mesh>
+        <icosahedronGeometry args={[0.32, 1]} />
+        <meshStandardMaterial
+          color={glow}
+          emissive={glow}
+          emissiveIntensity={1.1}
+          transparent
+          opacity={0.85}
+          wireframe
+        />
+      </mesh>
+      <mesh position={[0, -0.55, 0]}>
+        <cylinderGeometry args={[0.4, 0.5, 0.12, 8]} />
+        <meshStandardMaterial
+          color={glow}
+          emissive={glow}
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.6}
+          wireframe
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function HoloScene({
   brief,
   appearance,
@@ -347,14 +382,22 @@ function HoloScene({
 
   const propCount = stage === "scene" && !room ? Math.min(brief.props.length, 5) : 0;
   const camPull = room ? 1 + Math.max(room.width, room.height) * 0.08 : 1;
+  const isDefeat = stage === "defeat";
+  const isVictory = stage === "victory";
+  const bgColor = isDefeat ? "#0a0304" : "#03080c";
+  const ambient = isDefeat ? 0.12 : isVictory ? 0.5 : 0.35;
 
   return (
     <>
-      <color attach="background" args={["#03080c"]} />
-      <fog attach="fog" args={["#03080c", 7 * camPull, 16 * camPull]} />
-      <ambientLight intensity={0.35} />
-      <pointLight position={[0, 2.4, 2]} intensity={1.4} color={colors.glow} />
-      <pointLight position={[-2, -1, -2]} intensity={0.5} color={colors.secondary} />
+      <color attach="background" args={[bgColor]} />
+      <fog attach="fog" args={[bgColor, 7 * camPull, 16 * camPull]} />
+      <ambientLight intensity={ambient} />
+      <pointLight
+        position={[0, 2.4, 2]}
+        intensity={isDefeat ? 0.4 : isVictory ? 2 : 1.4}
+        color={isDefeat ? "#ff6b5a" : colors.glow}
+      />
+      <pointLight position={[-2, -1, -2]} intensity={isDefeat ? 0.2 : 0.5} color={colors.secondary} />
 
       <Float
         speed={stage === "creation" ? 0.6 : 0.9}
@@ -371,7 +414,8 @@ function HoloScene({
             />
           )}
 
-          <HoloFigure appearance={appearance} dropIn={dropIn} />
+          {!isDefeat ? <HoloFigure appearance={appearance} dropIn={dropIn} /> : null}
+          {isVictory ? <AetherCore glow={colors.glow} /> : null}
 
           {Array.from({ length: propCount }).map((_, i) => {
             const angle = (i / propCount) * Math.PI * 2;
@@ -398,12 +442,12 @@ function HoloScene({
       </Float>
 
       <Sparkles
-        count={stage === "creation" ? 28 : 36}
+        count={isDefeat ? 8 : isVictory ? 60 : stage === "creation" ? 28 : 36}
         scale={[5 * camPull, 3, 5 * camPull]}
-        size={2}
-        speed={0.35}
-        opacity={0.5}
-        color={colors.glow}
+        size={isVictory ? 3 : 2}
+        speed={isDefeat ? 0.08 : 0.35}
+        opacity={isDefeat ? 0.2 : 0.5}
+        color={isDefeat ? "#ff6b5a" : colors.glow}
       />
     </>
   );

@@ -1,6 +1,7 @@
 import {
   ECONOMY,
   TOKEN_PACKS,
+  applyTurn,
   createOpeningSession,
   generateTurn,
   type AdventureSession,
@@ -62,6 +63,12 @@ export async function chooseAction(
     throw Object.assign(new Error("Session not found"), { status: 404 });
   }
 
+  if (session.status === "won" || session.status === "lost") {
+    throw Object.assign(new Error("This run has ended. Start a new adventure."), {
+      status: 409,
+    });
+  }
+
   const valid = session.choices.some((choice) => choice.id === choiceId);
   if (!valid) {
     throw Object.assign(new Error("Invalid choice"), { status: 400 });
@@ -86,12 +93,8 @@ export async function chooseAction(
 
   const turn = await generateTurn(session, choiceId);
   const next: AdventureSession = {
-    ...session,
-    beats: [...session.beats, turn.beat],
-    choices: turn.choices,
-    holo: turn.holo,
+    ...applyTurn(session, turn),
     tokensRemaining: wallet.tokens,
-    status: "active",
   };
   sessions.set(next.id, next);
   return { session: next, tokensSpent: cost };
