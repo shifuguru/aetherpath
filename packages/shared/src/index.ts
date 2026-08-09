@@ -1,6 +1,6 @@
 /** Shared contracts for Aetherpath client + API. */
 
-import type { RoomMap } from "./room.js";
+import type { Cardinal, RoomMap } from "./room.js";
 
 export type ChoiceId = string;
 
@@ -39,8 +39,10 @@ export interface HoloSceneBrief {
    * - creation: faint isometric tile + figure materialising
    * - explore: player on a small tile fog map
    * - scene: denser chamber composition
+   * - victory: the Aether Core chamber, claimed
+   * - defeat: the hologram gutters out
    */
-  stage?: "creation" | "explore" | "scene";
+  stage?: "creation" | "explore" | "scene" | "victory" | "defeat";
   /** How many floor tiles are revealed around the player (explore). */
   revealedTiles?: number;
   /** Structured room map for the hologram renderer (walls/doors/floors). */
@@ -65,6 +67,23 @@ export interface PlayerState {
   hp: number;
   maxHp: number;
   inventory: string[];
+  /** Rooms of the vault successfully cleared so far. */
+  depth: number;
+}
+
+/** What the party finds when a door is pushed through. */
+export type EncounterKind = "empty" | "treasure" | "trap" | "monster" | "relic";
+
+/**
+ * A door has been pushed but not yet resolved — used only for the
+ * "monster" case, where the player gets a fight/flee choice before the
+ * next room is committed to the session.
+ */
+export interface PendingTransition {
+  facing: Cardinal;
+  depth: number;
+  encounter: EncounterKind;
+  nextRoom: RoomMap;
 }
 
 export interface AdventureSession {
@@ -75,7 +94,8 @@ export interface AdventureSession {
   choices: StoryChoice[];
   holo: HoloSceneBrief;
   tokensRemaining: number;
-  status: "active" | "awaiting_tokens" | "ended";
+  status: "active" | "awaiting_tokens" | "ended" | "won" | "lost";
+  pending?: PendingTransition;
 }
 
 export interface StartAdventureRequest {
@@ -166,18 +186,27 @@ export const TOKEN_PACKS: TokenPack[] = [
 ];
 
 export const ECONOMY = {
-  freeTokenGrant: 20,
+  // A full winning run through the vault takes ~10-20 turns; the free grant
+  // should comfortably cover one honest attempt at 2 tokens/turn.
+  freeTokenGrant: 44,
   tokensPerTurn: 2,
-  adRewardTokens: 10,
+  adRewardTokens: 12,
 } as const;
 
-export { createOpeningSession, generateTurn } from "./storyEngine.js";
+/** Rooms deep the Aether Core sits — a full run is a bounded, winnable crawl. */
+export const WIN_DEPTH = 5;
+
+export { createOpeningSession, generateTurn, applyTurn } from "./storyEngine.js";
 export {
   generateSimpleRoom,
   revealAround,
   revealSemiRing,
   movePlayer,
   countRevealed,
+  oppositeFacing,
+  enterRoomAtDoor,
+  hashSeed,
+  mulberry32,
   type TileKind,
   type Cardinal,
   type GridPos,
