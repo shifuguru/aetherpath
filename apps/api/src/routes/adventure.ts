@@ -66,6 +66,7 @@ adventureRoutes.post("/choose", async (c) => {
   session.beats = [...session.beats, turn.beat];
   session.choices = turn.choices;
   session.holo = turn.holo;
+  if (turn.player) session.player = turn.player;
   session.tokensRemaining = wallet.tokens;
   session.status = "active";
   saveSession(session);

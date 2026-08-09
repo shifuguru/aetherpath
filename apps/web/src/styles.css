@@ -51,7 +51,7 @@ button {
   height: 100%;
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: minmax(0, 28%) minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
   max-width: 920px;
   margin: 0 auto;
@@ -104,42 +104,31 @@ button {
   font-weight: 600;
 }
 
-.story-pane {
+.status-pane {
   position: relative;
-  padding: 3.6rem 1.15rem 0.75rem;
-  overflow: hidden;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 78%, transparent 100%);
-}
-
-.story-scroll {
-  height: 100%;
-  overflow-y: auto;
+  z-index: 4;
   display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding-right: 0.25rem;
-  scroll-behavior: smooth;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.1rem;
+  padding: 3.35rem 1rem 0.55rem;
+  pointer-events: none;
 }
 
-.story-beat {
-  max-width: 40rem;
-  margin: 0 auto;
-  width: 100%;
-  animation: rise-in 480ms ease both;
-}
-
-.story-beat p {
+.status-line {
   margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.15rem, 2.6vw, 1.45rem);
-  line-height: 1.45;
-  color: var(--ink);
-}
-
-.story-beat.system p {
-  color: var(--ink-muted);
+  max-width: 36rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  color: var(--glow);
   font-family: var(--font-body);
   font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
+  animation: status-in 420ms ease both;
 }
 
 .holo-pane {
@@ -411,14 +400,14 @@ textarea {
   margin-top: 0.75rem;
 }
 
-@keyframes rise-in {
+@keyframes status-in {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-6px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -434,8 +423,13 @@ textarea {
 }
 
 @media (max-width: 640px) {
-  .app-shell {
-    grid-template-rows: minmax(0, 30%) minmax(0, 1fr) auto;
+  .status-pane {
+    min-height: 2.85rem;
+    padding-top: 3.15rem;
+  }
+
+  .status-line {
+    font-size: 0.88rem;
   }
 
   .choice-grid[data-count="2"],

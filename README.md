@@ -9,7 +9,7 @@ Create your own scrolling narrative, deal with choices, and uncover what lies at
 ## Layout
 
 ```
-Story feed (scrolls down from the top)
+Brand + tokens · status ticker (“+1 item found!”)
 ────────────────────────────
 Holographic world (live scene)
 ────────────────────────────
