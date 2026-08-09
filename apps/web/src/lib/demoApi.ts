@@ -90,6 +90,7 @@ export async function chooseAction(
     beats: [...session.beats, turn.beat],
     choices: turn.choices,
     holo: turn.holo,
+    player: turn.player ?? session.player,
     tokensRemaining: wallet.tokens,
     status: "active",
   };

@@ -3,12 +3,12 @@ import type {
   CharacterAppearance,
   ChoiceId,
   HoloSceneBrief,
+  PlayerState,
   StoryBeat,
   StoryChoice,
 } from "./index.js";
 import {
   countRevealed,
-  describeTileUnderPlayer,
   generateSimpleRoom,
   getTile,
   movePlayer,
@@ -31,6 +31,15 @@ const EXPLORE_PALETTE = {
   glow: "#7dffc8",
 };
 
+const SCRAPS = [
+  "iron key",
+  "phosphor shard",
+  "frayed ribbon",
+  "cold coin",
+  "bone charm",
+  "rust nail",
+];
+
 function openingRoom(seed: string): RoomMap {
   return generateSimpleRoom({
     id: `threshold-${seed}`,
@@ -52,17 +61,25 @@ function sid(length = 8): string {
   return out;
 }
 
+function statusBeat(text: string): StoryBeat {
+  return {
+    id: sid(8),
+    text,
+    voice: "system",
+    createdAt: new Date().toISOString(),
+  };
+}
+
 function exploreChoices(room: RoomMap, includeLook: boolean): StoryChoice[] {
   const moves = travelChoices(room);
   const choices: StoryChoice[] = [];
   if (includeLook) {
     choices.push({
       id: "look-around",
-      label: "Stay still and look around",
-      hint: "Reveal nearby tiles without moving",
+      label: "Look around",
+      hint: "Reveal nearby tiles",
     });
   }
-  // Keep ≤4 buttons: prefer travel, drop look if needed.
   const roomForMoves = 4 - choices.length;
   choices.push(...moves.slice(0, roomForMoves));
   if (choices.length === 0) {
@@ -97,58 +114,26 @@ function exploreHolo(
   };
 }
 
-function travelBeat(room: RoomMap, dir: Cardinal): string {
-  const under = getTile(room, room.player.x, room.player.y);
-  const dirWord =
-    dir === "N" ? "north" : dir === "S" ? "south" : dir === "W" ? "west" : "east";
-  if (under?.kind === "door") {
-    return `One step ${dirWord} — you cross onto the doorway. Stone underfoot, open air beyond. ${describeTileUnderPlayer(room)} The chamber still waits; you can keep traveling tile by tile.`;
-  }
-  return `You step one tile ${dirWord}. The hologram catches up — adjacent stone resolves around your new footing. ${describeTileUnderPlayer(room)}`;
+function dirWord(dir: Cardinal): string {
+  return dir === "N" ? "north" : dir === "S" ? "south" : dir === "W" ? "west" : "east";
 }
 
-/**
- * Skeleton story engine.
- * Explore mode: look around, then travel one tile at a time.
- */
-const OPENING: {
-  beat: string;
-  choices: StoryChoice[];
-  holo: HoloSceneBrief;
-} = {
-  beat: "The chamber is only a single square of stone — and you. Beyond the tile, the vault is unwritten dark. Look to learn the room, or take a single step and travel.",
-  choices: [
-    {
-      id: "look-around",
-      label: "Stay still and look around",
-      hint: "Reveal nearby tiles without moving",
-    },
-    {
-      id: "move-n",
-      label: "Step north",
-      hint: "One tile",
-    },
-    {
-      id: "move-e",
-      label: "Step east",
-      hint: "One tile",
-    },
-    {
-      id: "move-w",
-      label: "Step west",
-      hint: "One tile",
-    },
-  ],
-  holo: {
-    locale: "threshold square",
-    mood: "eerie",
-    props: ["floor"],
-    palette: EXPLORE_PALETTE,
-    focal: "a lone square tile holding your form",
-    stage: "explore",
-    revealedTiles: 1,
-  },
-};
+function maybeLoot(
+  player: PlayerState,
+  chance: number,
+): { player: PlayerState; status: string | null } {
+  if (Math.random() > chance) return { player, status: null };
+  const item = SCRAPS[Math.floor(Math.random() * SCRAPS.length)]!;
+  if (player.inventory.includes(item)) return { player, status: null };
+  return {
+    player: { ...player, inventory: [...player.inventory, item] },
+    status: `+1 ${item}`,
+  };
+}
+
+function joinStatus(...parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(" · ");
+}
 
 export function createOpeningSession(input: {
   id: string;
@@ -162,18 +147,11 @@ export function createOpeningSession(input: {
   const room = openingRoom(input.seed);
   const holo = exploreHolo(
     room,
-    OPENING.holo.locale,
-    OPENING.holo.focal ?? "",
+    "threshold",
+    "lone tile",
     "eerie",
     appearance.glow,
   );
-
-  const beat: StoryBeat = {
-    id: sid(8),
-    text: OPENING.beat,
-    voice: "narrator",
-    createdAt: new Date().toISOString(),
-  };
 
   return {
     id: input.id,
@@ -186,8 +164,7 @@ export function createOpeningSession(input: {
       maxHp: 20,
       inventory: ["torch", "worn map", "iron knife"],
     },
-    beats: [beat],
-    // Opening offers look + cardinals that are walkable from center (all 4 on 5x5).
+    beats: [statusBeat("Chamber unresolved")],
     choices: exploreChoices(room, true),
     holo,
     tokensRemaining: input.tokensRemaining,
@@ -202,28 +179,27 @@ export async function generateTurn(
   beat: StoryBeat;
   choices: StoryChoice[];
   holo: HoloSceneBrief;
+  player?: PlayerState;
 }> {
   const base = session.holo.room ?? openingRoom(session.seed);
   const glow = session.player.appearance?.glow;
   const moveDir = parseMoveChoice(choiceId);
+  const revealedBefore = base.tiles.filter((t) => t.revealed).length;
 
   if (choiceId === "look-around") {
     const room = revealSemiRing(base, base.player, base.facing, 2);
+    const gained = room.tiles.filter((t) => t.revealed).length - revealedBefore;
+    const loot = maybeLoot(session.player, 0.35);
     return {
-      beat: {
-        id: sid(8),
-        text: "You hold still. Nearby floors resolve, then wall faces, then doorframes humming with cold light. You can travel one tile at a time from here.",
-        voice: "narrator",
-        createdAt: new Date().toISOString(),
-      },
-      choices: exploreChoices(room, false),
-      holo: exploreHolo(
-        room,
-        "listening antechamber",
-        "walls and doors resolving around your footing",
-        "tense",
-        glow,
+      beat: statusBeat(
+        joinStatus(
+          gained > 0 ? `+${gained} tiles revealed` : "Nothing new nearby",
+          loot.status,
+        ),
       ),
+      choices: exploreChoices(room, false),
+      holo: exploreHolo(room, "chamber", "survey", "tense", glow),
+      player: loot.status ? loot.player : undefined,
     };
   }
 
@@ -232,43 +208,50 @@ export async function generateTurn(
     const room = movePlayer(base, moveDir, 1);
     const stepped =
       room.player.x !== before.x || room.player.y !== before.y;
-    const beatText = stepped
-      ? travelBeat(room, moveDir)
-      : "Stone blocks that way. You stay planted and study the wall closing the path.";
+    const gained = room.tiles.filter((t) => t.revealed).length - revealedBefore;
+    const under = getTile(room, room.player.x, room.player.y);
+
+    if (!stepped) {
+      return {
+        beat: statusBeat("Path blocked"),
+        choices: exploreChoices(base, true),
+        holo: exploreHolo(base, session.holo.locale, "blocked", "tense", glow),
+      };
+    }
+
+    const onDoor = under?.kind === "door";
+    const loot = maybeLoot(session.player, onDoor ? 0.55 : 0.18);
+    const primary = onDoor
+      ? `Doorway · ${dirWord(moveDir)}`
+      : `Stepped ${dirWord(moveDir)}`;
 
     return {
-      beat: {
-        id: sid(8),
-        text: beatText,
-        voice: "narrator",
-        createdAt: new Date().toISOString(),
-      },
+      beat: statusBeat(
+        joinStatus(
+          primary,
+          gained > 0 ? `+${gained} revealed` : null,
+          loot.status,
+        ),
+      ),
       choices: exploreChoices(room, true),
       holo: exploreHolo(
         room,
-        "traveling chamber",
-        stepped
-          ? `one tile ${moveDir === "N" ? "north" : moveDir === "S" ? "south" : moveDir === "W" ? "west" : "east"}`
-          : "path blocked",
+        onDoor ? "threshold" : "chamber",
+        onDoor ? "doorway" : `step ${dirWord(moveDir)}`,
         "wonder",
         glow,
       ),
+      player: loot.status ? loot.player : undefined,
     };
   }
 
-  // Unknown choice: stay put, keep travel options.
   return {
-    beat: {
-      id: sid(8),
-      text: "The vault waits. Choose a direction and travel one tile at a time.",
-      voice: "narrator",
-      createdAt: new Date().toISOString(),
-    },
+    beat: statusBeat("Awaiting move"),
     choices: exploreChoices(base, true),
     holo: exploreHolo(
       base,
       session.holo.locale,
-      session.holo.focal ?? "the chamber holds",
+      session.holo.focal ?? "hold",
       session.holo.mood,
       glow,
     ),

@@ -3,7 +3,6 @@ import type {
   AdventureSession,
   CharacterAppearance,
   HoloSceneBrief,
-  StoryBeat,
   TokenPack,
   WalletSnapshot,
 } from "@aetherpath/shared";
@@ -14,7 +13,7 @@ import {
 import { ChoiceBar } from "./components/ChoiceBar";
 import { CreateBar } from "./components/CreateBar";
 import { HoloWorld } from "./components/HoloWorld";
-import { StoryFeed } from "./components/StoryFeed";
+import { StatusBar } from "./components/StatusBar";
 import { TokenGate } from "./components/TokenGate";
 import {
   chooseAction,
@@ -23,13 +22,6 @@ import {
   purchasePack,
   startAdventure,
 } from "./lib/api";
-
-const CREATION_BEAT: StoryBeat = {
-  id: "creation",
-  text: "A faint isometric square materialises in the void. Light gathers above it — then a form drops down, unfinished, waiting for a name.",
-  voice: "narrator",
-  createdAt: new Date(0).toISOString(),
-};
 
 function creationBrief(appearance: CharacterAppearance): HoloSceneBrief {
   return {
@@ -68,6 +60,11 @@ const NAME_SEEDS = [
   "Iri",
   "Thorne",
 ];
+
+function latestStatus(session: AdventureSession | null): string {
+  const beat = session?.beats[session.beats.length - 1];
+  return beat?.text ?? "";
+}
 
 export function App() {
   const [phase, setPhase] = useState<"boot" | "create" | "play">("boot");
@@ -211,6 +208,14 @@ export function App() {
   };
 
   const createBrief = useMemo(() => creationBrief(appearance), [appearance]);
+  const statusMessage =
+    phase === "create"
+      ? "Form materialising — name yourself"
+      : latestStatus(session);
+  const statusSignal =
+    phase === "create"
+      ? `create-${dropKey}`
+      : (session?.beats[session.beats.length - 1]?.id ?? "idle");
 
   if (phase === "boot" || !wallet) {
     return (
@@ -272,7 +277,7 @@ export function App() {
           </button>
         </div>
 
-        <StoryFeed beats={[CREATION_BEAT]} />
+        <StatusBar message={statusMessage} signal={statusSignal} />
         <HoloWorld
           key={`create-${dropKey}`}
           brief={createBrief}
@@ -318,7 +323,7 @@ export function App() {
         </button>
       </div>
 
-      <StoryFeed beats={session.beats} />
+      <StatusBar message={statusMessage} signal={statusSignal} />
       <HoloWorld
         brief={session.holo}
         appearance={session.player.appearance ?? appearance}
