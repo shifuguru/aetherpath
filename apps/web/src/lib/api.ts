@@ -7,7 +7,9 @@ import type {
   TokenPack,
   WalletSnapshot,
 } from "@aetherpath/shared";
+import * as demo from "./demoApi";
 
+const DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 const BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8787";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -35,6 +37,7 @@ export function startAdventure(body?: {
   className?: string;
   appearance?: CharacterAppearance;
 }) {
+  if (DEMO) return demo.startAdventure(body);
   return request<StartAdventureResponse>("/v1/adventure/start", {
     method: "POST",
     body: JSON.stringify(body ?? {}),
@@ -42,6 +45,7 @@ export function startAdventure(body?: {
 }
 
 export function chooseAction(sessionId: string, choiceId: string) {
+  if (DEMO) return demo.chooseAction(sessionId, choiceId);
   return request<ChooseActionResponse>("/v1/adventure/choose", {
     method: "POST",
     body: JSON.stringify({ sessionId, choiceId }),
@@ -49,12 +53,14 @@ export function chooseAction(sessionId: string, choiceId: string) {
 }
 
 export function getWallet() {
+  if (DEMO) return demo.getWallet();
   return request<{ wallet: WalletSnapshot; packs: TokenPack[] }>(
     "/v1/economy/wallet",
   );
 }
 
 export function purchasePack(packId: string) {
+  if (DEMO) return demo.purchasePack(packId);
   return request<{ wallet: WalletSnapshot; tokensGranted: number }>(
     "/v1/economy/purchase",
     {
@@ -65,6 +71,7 @@ export function purchasePack(packId: string) {
 }
 
 export function claimAdReward(sessionId?: string) {
+  if (DEMO) return demo.claimAdReward(sessionId);
   return request<AdRewardGrantResponse>("/v1/economy/ad-reward", {
     method: "POST",
     body: JSON.stringify({

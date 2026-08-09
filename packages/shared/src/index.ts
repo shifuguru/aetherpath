@@ -166,3 +166,5 @@ export const ECONOMY = {
   tokensPerTurn: 2,
   adRewardTokens: 10,
 } as const;
+
+export { createOpeningSession, generateTurn } from "./storyEngine.js";

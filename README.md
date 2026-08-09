@@ -24,6 +24,15 @@ Player choices (2–4)
 | `apps/api` | Hono API — adventure turns, wallet, ad/purchase stubs |
 | `packages/shared` | Shared TypeScript contracts |
 
+## Try on mobile
+
+Static demo (client-side story engine, no API):  
+**https://shifuguru.github.io/aetherpath/**
+
+Deploys from `main` via GitHub Actions → GitHub Pages (`VITE_DEMO_MODE=true`).
+
+Local full stack (API + web): `pnpm install && pnpm dev`
+
 ## Roadmap (short)
 
 1. Real LLM structured turns  
