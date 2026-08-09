@@ -1,6 +1,7 @@
 import type {
   AdventureSession,
   AdRewardGrantResponse,
+  CharacterAppearance,
   ChooseActionResponse,
   StartAdventureResponse,
   TokenPack,
@@ -32,6 +33,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function startAdventure(body?: {
   playerName?: string;
   className?: string;
+  appearance?: CharacterAppearance;
 }) {
   return request<StartAdventureResponse>("/v1/adventure/start", {
     method: "POST",

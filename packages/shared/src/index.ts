@@ -32,11 +32,32 @@ export interface HoloSceneBrief {
   };
   /** Optional focal subject description. */
   focal?: string;
+  /**
+   * Renderer stage hint.
+   * - creation: faint isometric tile + figure materialising
+   * - explore: player on a small tile fog map
+   * - scene: denser chamber composition
+   */
+  stage?: "creation" | "explore" | "scene";
+  /** How many floor tiles are revealed around the player (explore). */
+  revealedTiles?: number;
+}
+
+/** Visual identity chosen during player creation. */
+export type CharacterBuild = "slim" | "sturdy" | "tall";
+
+export interface CharacterAppearance {
+  build: CharacterBuild;
+  /** Suit wash for the hologram figure. */
+  primary: string;
+  /** Emissive accent / glow. */
+  glow: string;
 }
 
 export interface PlayerState {
   name: string;
   className: string;
+  appearance: CharacterAppearance;
   hp: number;
   maxHp: number;
   inventory: string[];
@@ -57,7 +78,22 @@ export interface StartAdventureRequest {
   playerName?: string;
   className?: string;
   seed?: string;
+  appearance?: CharacterAppearance;
 }
+
+export const DEFAULT_APPEARANCE: CharacterAppearance = {
+  build: "slim",
+  primary: "#1a2f3a",
+  glow: "#7dffc8",
+};
+
+export const APPEARANCE_PRESETS: CharacterAppearance[] = [
+  DEFAULT_APPEARANCE,
+  { build: "sturdy", primary: "#2a2438", glow: "#9ee7ff" },
+  { build: "tall", primary: "#102820", glow: "#6dffb0" },
+  { build: "slim", primary: "#241820", glow: "#ffb38a" },
+  { build: "sturdy", primary: "#1a2830", glow: "#d4b0ff" },
+];
 
 export interface StartAdventureResponse {
   session: AdventureSession;

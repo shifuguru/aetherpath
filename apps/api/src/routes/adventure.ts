@@ -18,6 +18,7 @@ adventureRoutes.post("/start", async (c) => {
     seed: body.seed ?? nanoid(8),
     playerName: body.playerName?.trim() || "Wanderer",
     className: body.className?.trim() || "Spellblade",
+    appearance: body.appearance,
     tokensRemaining: wallet.tokens,
   });
   saveSession(session);
