@@ -1,33 +1,178 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Sparkles } from "@react-three/drei";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Group, Mesh } from "three";
-import type { HoloSceneBrief } from "@aetherpath/shared";
+import type { CharacterAppearance, HoloSceneBrief } from "@aetherpath/shared";
+import { DEFAULT_APPEARANCE } from "@aetherpath/shared";
 
-function HoloScene({ brief }: { brief: HoloSceneBrief }) {
+/** Isometric diamond footprint on XZ. */
+function IsoTile({
+  x = 0,
+  z = 0,
+  color,
+  opacity = 0.45,
+  scale = 1,
+}: {
+  x?: number;
+  z?: number;
+  color: string;
+  opacity?: number;
+  scale?: number;
+}) {
+  return (
+    <mesh
+      position={[x, -0.02, z]}
+      rotation={[-Math.PI / 2, 0, Math.PI / 4]}
+      scale={scale}
+    >
+      <planeGeometry args={[1.05, 1.05]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.35}
+        transparent
+        opacity={opacity}
+        metalness={0.2}
+        roughness={0.55}
+        wireframe
+      />
+    </mesh>
+  );
+}
+
+function HoloFigure({
+  appearance,
+  dropIn,
+}: {
+  appearance: CharacterAppearance;
+  dropIn: boolean;
+}) {
   const group = useRef<Group>(null);
-  const ring = useRef<Mesh>(null);
+  const startY = dropIn ? 2.4 : 0;
+  const settled = useRef(!dropIn);
 
+  useEffect(() => {
+    settled.current = !dropIn;
+    if (group.current) {
+      group.current.position.y = dropIn ? startY : 0;
+    }
+  }, [dropIn, appearance.glow, appearance.build, startY]);
+
+  useFrame((state, delta) => {
+    if (!group.current) return;
+    if (!settled.current) {
+      group.current.position.y = Math.max(0, group.current.position.y - delta * 2.8);
+      if (group.current.position.y <= 0.02) {
+        group.current.position.y = 0;
+        settled.current = true;
+      }
+      return;
+    }
+    group.current.position.y = Math.sin(state.clock.elapsedTime * 1.6) * 0.04;
+  });
+
+  const dims =
+    appearance.build === "sturdy"
+      ? { torso: [0.34, 0.48, 0.22] as const, leg: 0.28, head: 0.16 }
+      : appearance.build === "tall"
+        ? { torso: [0.26, 0.62, 0.18] as const, leg: 0.36, head: 0.14 }
+        : { torso: [0.28, 0.52, 0.18] as const, leg: 0.3, head: 0.15 };
+
+  return (
+    <group ref={group} position={[0, startY, 0]}>
+      <mesh position={[0, dims.leg + dims.torso[1] / 2, 0]}>
+        <boxGeometry args={[...dims.torso]} />
+        <meshStandardMaterial
+          color={appearance.primary}
+          emissive={appearance.glow}
+          emissiveIntensity={0.55}
+          transparent
+          opacity={0.82}
+          wireframe
+        />
+      </mesh>
+      <mesh position={[0, dims.leg + dims.torso[1] + dims.head, 0]}>
+        <octahedronGeometry args={[dims.head, 0]} />
+        <meshStandardMaterial
+          color={appearance.glow}
+          emissive={appearance.glow}
+          emissiveIntensity={0.9}
+          transparent
+          opacity={0.9}
+          wireframe
+        />
+      </mesh>
+      <mesh position={[-0.1, dims.leg / 2, 0]}>
+        <boxGeometry args={[0.1, dims.leg, 0.1]} />
+        <meshStandardMaterial
+          color={appearance.primary}
+          emissive={appearance.glow}
+          emissiveIntensity={0.3}
+          wireframe
+        />
+      </mesh>
+      <mesh position={[0.1, dims.leg / 2, 0]}>
+        <boxGeometry args={[0.1, dims.leg, 0.1]} />
+        <meshStandardMaterial
+          color={appearance.primary}
+          emissive={appearance.glow}
+          emissiveIntensity={0.3}
+          wireframe
+        />
+      </mesh>
+    </group>
+  );
+}
+
+function tileOffsets(count: number): Array<{ x: number; z: number }> {
+  if (count <= 1) return [{ x: 0, z: 0 }];
+  const step = 1.05;
+  const ring: Array<{ x: number; z: number }> = [{ x: 0, z: 0 }];
+  // axial-ish ring around center for isometric footprint
+  const dirs = [
+    [step, 0],
+    [-step, 0],
+    [0, step],
+    [0, -step],
+    [step * 0.7, step * 0.7],
+    [-step * 0.7, step * 0.7],
+    [step * 0.7, -step * 0.7],
+    [-step * 0.7, -step * 0.7],
+  ];
+  for (let i = 0; i < Math.min(count - 1, dirs.length); i++) {
+    ring.push({ x: dirs[i][0], z: dirs[i][1] });
+  }
+  return ring;
+}
+
+function HoloScene({
+  brief,
+  appearance,
+  dropIn,
+}: {
+  brief: HoloSceneBrief;
+  appearance: CharacterAppearance;
+  dropIn: boolean;
+}) {
+  const ring = useRef<Mesh>(null);
+  const stage = brief.stage ?? "scene";
   const colors = useMemo(
     () => ({
       primary: brief.palette.primary,
       secondary: brief.palette.secondary,
-      glow: brief.palette.glow,
+      glow: appearance.glow || brief.palette.glow,
     }),
-    [brief.palette.glow, brief.palette.primary, brief.palette.secondary],
+    [appearance.glow, brief.palette.glow, brief.palette.primary, brief.palette.secondary],
   );
 
   useFrame((_, delta) => {
-    if (group.current) {
-      group.current.rotation.y += delta * 0.18;
-    }
     if (ring.current) {
-      ring.current.rotation.z -= delta * 0.35;
-      ring.current.rotation.x += delta * 0.12;
+      ring.current.rotation.z -= delta * 0.28;
     }
   });
 
-  const propCount = Math.min(brief.props.length, 5);
+  const tiles = tileOffsets(brief.revealedTiles ?? (stage === "creation" ? 1 : 1));
+  const propCount = stage === "scene" ? Math.min(brief.props.length, 5) : 0;
 
   return (
     <>
@@ -37,54 +182,39 @@ function HoloScene({ brief }: { brief: HoloSceneBrief }) {
       <pointLight position={[0, 2.2, 2]} intensity={1.4} color={colors.glow} />
       <pointLight position={[-2, -1, -2]} intensity={0.5} color={colors.secondary} />
 
-      <Float speed={1.4} rotationIntensity={0.25} floatIntensity={0.55}>
-        <group ref={group} position={[0, 0.1, 0]}>
-          <mesh position={[0, -0.85, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry args={[1.55, 1.72, 64]} />
-            <meshBasicMaterial color={colors.glow} transparent opacity={0.35} />
+      <Float
+        speed={stage === "creation" ? 0.6 : 1.1}
+        rotationIntensity={0.08}
+        floatIntensity={stage === "creation" ? 0.15 : 0.4}
+      >
+        <group position={[0, 0.05, 0]}>
+          {tiles.map((t, i) => (
+            <IsoTile
+              key={`${t.x}-${t.z}-${i}`}
+              x={t.x}
+              z={t.z}
+              color={i === 0 ? colors.glow : colors.secondary}
+              opacity={i === 0 ? 0.55 : 0.28}
+            />
+          ))}
+
+          <mesh ref={ring} position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[1.35, 1.48, 64]} />
+            <meshBasicMaterial color={colors.glow} transparent opacity={0.22} />
           </mesh>
 
-          <mesh ref={ring} position={[0, 0, 0]}>
-            <torusGeometry args={[1.15, 0.02, 12, 80]} />
-            <meshStandardMaterial
-              color={colors.glow}
-              emissive={colors.glow}
-              emissiveIntensity={0.8}
-              metalness={0.2}
-              roughness={0.35}
-            />
-          </mesh>
-
-          <mesh position={[0, -0.2, 0]}>
-            <cylinderGeometry args={[0.9, 1.15, 0.35, 6]} />
-            <meshStandardMaterial
-              color={colors.primary}
-              emissive={colors.secondary}
-              emissiveIntensity={0.25}
-              metalness={0.45}
-              roughness={0.4}
-              wireframe
-            />
-          </mesh>
-
-          <mesh position={[0, 0.55, 0]}>
-            <octahedronGeometry args={[0.45, 0]} />
-            <meshStandardMaterial
-              color={colors.glow}
-              emissive={colors.glow}
-              emissiveIntensity={0.65}
-              transparent
-              opacity={0.75}
-              wireframe
-            />
-          </mesh>
+          <HoloFigure appearance={appearance} dropIn={dropIn} />
 
           {Array.from({ length: propCount }).map((_, i) => {
             const angle = (i / propCount) * Math.PI * 2;
             return (
               <mesh
                 key={brief.props[i] ?? i}
-                position={[Math.cos(angle) * 1.35, 0.15 + (i % 2) * 0.25, Math.sin(angle) * 1.35]}
+                position={[
+                  Math.cos(angle) * 1.55,
+                  0.2 + (i % 2) * 0.2,
+                  Math.sin(angle) * 1.55,
+                ]}
               >
                 <boxGeometry args={[0.18, 0.45 + (i % 3) * 0.12, 0.18]} />
                 <meshStandardMaterial
@@ -100,7 +230,7 @@ function HoloScene({ brief }: { brief: HoloSceneBrief }) {
       </Float>
 
       <Sparkles
-        count={40}
+        count={stage === "creation" ? 28 : 40}
         scale={[5, 3, 5]}
         size={2}
         speed={0.35}
@@ -111,12 +241,20 @@ function HoloScene({ brief }: { brief: HoloSceneBrief }) {
   );
 }
 
-export function HoloWorld({ brief }: { brief: HoloSceneBrief }) {
+export function HoloWorld({
+  brief,
+  appearance = DEFAULT_APPEARANCE,
+  dropIn = false,
+}: {
+  brief: HoloSceneBrief;
+  appearance?: CharacterAppearance;
+  dropIn?: boolean;
+}) {
   return (
     <section className="holo-pane" aria-label="Holographic world">
       <div className="holo-canvas">
-        <Canvas camera={{ position: [0, 1.2, 4.2], fov: 42 }}>
-          <HoloScene brief={brief} />
+        <Canvas camera={{ position: [3.2, 3.4, 3.2], fov: 38 }}>
+          <HoloScene brief={brief} appearance={appearance} dropIn={dropIn} />
         </Canvas>
       </div>
       <div className="holo-caption">

@@ -1,6 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
-import type { AdventureSession, TokenPack, WalletSnapshot } from "@aetherpath/shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type {
+  AdventureSession,
+  CharacterAppearance,
+  HoloSceneBrief,
+  StoryBeat,
+  TokenPack,
+  WalletSnapshot,
+} from "@aetherpath/shared";
+import {
+  APPEARANCE_PRESETS,
+  DEFAULT_APPEARANCE,
+} from "@aetherpath/shared";
 import { ChoiceBar } from "./components/ChoiceBar";
+import { CreateBar } from "./components/CreateBar";
 import { HoloWorld } from "./components/HoloWorld";
 import { StoryFeed } from "./components/StoryFeed";
 import { TokenGate } from "./components/TokenGate";
@@ -12,13 +24,62 @@ import {
   startAdventure,
 } from "./lib/api";
 
+const CREATION_BEAT: StoryBeat = {
+  id: "creation",
+  text: "A faint isometric square materialises in the void. Light gathers above it — then a form drops down, unfinished, waiting for a name.",
+  voice: "narrator",
+  createdAt: new Date(0).toISOString(),
+};
+
+function creationBrief(appearance: CharacterAppearance): HoloSceneBrief {
+  return {
+    locale: "materialising form",
+    mood: "wonder",
+    props: ["isometric tile", "holographic figure"],
+    palette: {
+      primary: appearance.primary,
+      secondary: "#3d6b7a",
+      glow: appearance.glow,
+    },
+    focal: "a lone tile receiving your hologram",
+    stage: "creation",
+    revealedTiles: 1,
+  };
+}
+
+function randomAppearance(): CharacterAppearance {
+  const base =
+    APPEARANCE_PRESETS[Math.floor(Math.random() * APPEARANCE_PRESETS.length)] ??
+    DEFAULT_APPEARANCE;
+  const builds: CharacterAppearance["build"][] = ["slim", "sturdy", "tall"];
+  return {
+    ...base,
+    build: builds[Math.floor(Math.random() * builds.length)] ?? "slim",
+  };
+}
+
+const NAME_SEEDS = [
+  "Ashen",
+  "Vesper",
+  "Kael",
+  "Nyx",
+  "Orin",
+  "Sable",
+  "Iri",
+  "Thorne",
+];
+
 export function App() {
+  const [phase, setPhase] = useState<"boot" | "create" | "play">("boot");
   const [session, setSession] = useState<AdventureSession | null>(null);
   const [wallet, setWallet] = useState<WalletSnapshot | null>(null);
   const [packs, setPacks] = useState<TokenPack[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showGate, setShowGate] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [appearance, setAppearance] = useState<CharacterAppearance>(DEFAULT_APPEARANCE);
+  const [dropKey, setDropKey] = useState(0);
 
   const refreshWallet = useCallback(async () => {
     const data = await getWallet();
@@ -27,26 +88,58 @@ export function App() {
     return data.wallet;
   }, []);
 
-  const begin = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await refreshWallet();
+        if (!cancelled) setPhase("create");
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to reach the vault");
+          setPhase("boot");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshWallet]);
+
+  const onAppearanceChange = (next: CharacterAppearance) => {
+    setAppearance(next);
+    setDropKey((k) => k + 1);
+  };
+
+  const onRandom = () => {
+    setAppearance(randomAppearance());
+    setPlayerName(NAME_SEEDS[Math.floor(Math.random() * NAME_SEEDS.length)] ?? "Wanderer");
+    setDropKey((k) => k + 1);
+  };
+
+  const begin = async () => {
+    const name = playerName.trim();
+    if (!name || busy) return;
     setBusy(true);
     setError(null);
     try {
       const [{ session: next }, w] = await Promise.all([
-        startAdventure({ playerName: "Wanderer", className: "Spellblade" }),
+        startAdventure({
+          playerName: name,
+          className: "Spellblade",
+          appearance,
+        }),
         refreshWallet(),
       ]);
       setSession({ ...next, tokensRemaining: w.tokens });
       setShowGate(false);
+      setPhase("play");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start adventure");
     } finally {
       setBusy(false);
     }
-  }, [refreshWallet]);
-
-  useEffect(() => {
-    void begin();
-  }, [begin]);
+  };
 
   const onChoose = async (choiceId: string) => {
     if (!session || busy) return;
@@ -101,7 +194,6 @@ export function App() {
     setBusy(true);
     setError(null);
     try {
-      // Skeleton: simulate a short rewarded ad, then claim.
       await new Promise((r) => setTimeout(r, 900));
       const { wallet: next } = await claimAdReward(session?.id);
       setWallet(next);
@@ -118,7 +210,9 @@ export function App() {
     }
   };
 
-  if (!session || !wallet) {
+  const createBrief = useMemo(() => creationBrief(appearance), [appearance]);
+
+  if (phase === "boot" || !wallet) {
     return (
       <div className="boot">
         <div className="boot-card">
@@ -127,7 +221,20 @@ export function App() {
           </h1>
           <p>Spinning up the vault…</p>
           {error ? <p className="error-text">{error}</p> : null}
-          <button type="button" className="primary-btn" disabled={busy} onClick={() => void begin()}>
+          <button
+            type="button"
+            className="primary-btn"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void refreshWallet()
+                .then(() => setPhase("create"))
+                .catch((e) =>
+                  setError(e instanceof Error ? e.message : "Failed to reach the vault"),
+                )
+                .finally(() => setBusy(false));
+            }}
+          >
             Enter the dungeon
           </button>
         </div>
@@ -135,7 +242,7 @@ export function App() {
     );
   }
 
-  if (showGate || session.status === "awaiting_tokens") {
+  if (showGate || session?.status === "awaiting_tokens") {
     return (
       <TokenGate
         wallet={wallet}
@@ -146,6 +253,53 @@ export function App() {
         onClose={() => setShowGate(false)}
       />
     );
+  }
+
+  if (phase === "create") {
+    return (
+      <div className="app-shell">
+        <div className="top-bar">
+          <div className="brand">
+            Aether<span>path</span>
+          </div>
+          <button
+            type="button"
+            className="token-chip"
+            onClick={() => setShowGate(true)}
+            aria-label="Open token wallet"
+          >
+            Tokens <strong>{wallet.tokens}</strong>
+          </button>
+        </div>
+
+        <StoryFeed beats={[CREATION_BEAT]} />
+        <HoloWorld
+          key={`create-${dropKey}`}
+          brief={createBrief}
+          appearance={appearance}
+          dropIn
+        />
+        <CreateBar
+          name={playerName}
+          appearance={appearance}
+          busy={busy}
+          onNameChange={setPlayerName}
+          onAppearanceChange={onAppearanceChange}
+          onRandom={onRandom}
+          onPlay={() => void begin()}
+        />
+
+        {error ? (
+          <p className="error-text" style={{ position: "absolute", bottom: "0.25rem", left: "1rem" }}>
+            {error}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
   }
 
   return (
@@ -165,7 +319,10 @@ export function App() {
       </div>
 
       <StoryFeed beats={session.beats} />
-      <HoloWorld brief={session.holo} />
+      <HoloWorld
+        brief={session.holo}
+        appearance={session.player.appearance ?? appearance}
+      />
       <ChoiceBar
         choices={session.choices}
         disabled={busy}

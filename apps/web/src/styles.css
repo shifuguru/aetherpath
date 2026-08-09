@@ -173,9 +173,93 @@ button {
   text-overflow: ellipsis;
 }
 
-.choice-pane {
+.choice-pane,
+.create-pane {
   padding: 0.9rem 1rem 1.15rem;
   background: linear-gradient(180deg, rgba(3, 8, 12, 0.2), rgba(3, 8, 12, 0.85));
+}
+
+.create-inner {
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  animation: choice-in 420ms ease both;
+}
+
+.create-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.create-field span {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.create-field input {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--line);
+  background: var(--choice);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.create-field input:focus {
+  border-color: var(--glow-soft);
+  box-shadow: 0 0 0 1px rgba(125, 255, 200, 0.12);
+}
+
+.create-field input::placeholder {
+  color: rgba(157, 176, 184, 0.55);
+}
+
+.create-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.appearance-swatches {
+  display: flex;
+  flex: 1;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 35% 30%, var(--swatch-glow), transparent 55%),
+    linear-gradient(160deg, var(--swatch-primary), #0a141a);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.swatch:hover:not(:disabled),
+.swatch.active {
+  border-color: var(--glow-soft);
+  box-shadow: 0 0 0 1px rgba(125, 255, 200, 0.2);
+  transform: translateY(-1px);
+}
+
+.create-random {
+  width: auto;
+  margin-top: 0;
+  padding-inline: 1rem;
+  white-space: nowrap;
+}
+
+.create-play {
+  margin-top: 0.15rem;
 }
 
 .choice-grid {
