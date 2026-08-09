@@ -3,6 +3,8 @@
 export type TileKind = "floor" | "wall" | "door" | "void";
 export type Cardinal = "N" | "E" | "S" | "W";
 
+export const CARDINALS: Cardinal[] = ["N", "E", "S", "W"];
+
 export function oppositeFacing(facing: Cardinal): Cardinal {
   switch (facing) {
     case "N":
@@ -36,6 +38,8 @@ export interface RoomMap {
   height: number;
   tiles: MapTile[];
   player: GridPos;
+  /** Direction the player last stepped / is facing. */
+  facing: Cardinal;
   /** World units between tile centers. */
   tileSize: number;
   /** Which door the player walked in through, if any (drives move-blind direction). */
@@ -52,7 +56,22 @@ export interface GenerateRoomOptions {
   reveal?: "player" | "all";
   tileSize?: number;
   seed?: string;
+  facing?: Cardinal;
 }
+
+const DIR_DELTA: Record<Cardinal, GridPos> = {
+  N: { x: 0, y: -1 },
+  S: { x: 0, y: 1 },
+  W: { x: -1, y: 0 },
+  E: { x: 1, y: 0 },
+};
+
+const DIR_LABEL: Record<Cardinal, string> = {
+  N: "north",
+  S: "south",
+  W: "west",
+  E: "east",
+};
 
 export function hashSeed(seed: string): number {
   let h = 2166136261;
@@ -97,6 +116,57 @@ function doorCell(
   }
 }
 
+export function isWalkable(tile: MapTile | undefined): boolean {
+  return !!tile && (tile.kind === "floor" || tile.kind === "door");
+}
+
+export function getTile(room: RoomMap, x: number, y: number): MapTile | undefined {
+  return room.tiles.find((t) => t.x === x && t.y === y);
+}
+
+export function stepPos(from: GridPos, facing: Cardinal): GridPos {
+  const d = DIR_DELTA[facing];
+  return { x: from.x + d.x, y: from.y + d.y };
+}
+
+export function parseMoveChoice(choiceId: string): Cardinal | null {
+  const m = /^move-([nesw])$/i.exec(choiceId);
+  if (!m) return null;
+  return m[1]!.toUpperCase() as Cardinal;
+}
+
+export function moveChoiceId(facing: Cardinal): string {
+  return `move-${facing.toLowerCase()}`;
+}
+
+/** Walkable neighbors from the player's current tile (1 step). */
+export function listExits(room: RoomMap): Cardinal[] {
+  return CARDINALS.filter((dir) => {
+    const next = stepPos(room.player, dir);
+    return isWalkable(getTile(room, next.x, next.y));
+  });
+}
+
+/** Choice buttons for one-tile travel in each open direction. */
+export function travelChoices(room: RoomMap): Array<{
+  id: string;
+  label: string;
+  hint?: string;
+}> {
+  return listExits(room).map((dir) => {
+    const next = stepPos(room.player, dir);
+    const tile = getTile(room, next.x, next.y);
+    const throughDoor = tile?.kind === "door";
+    return {
+      id: moveChoiceId(dir),
+      label: throughDoor
+        ? `Step ${DIR_LABEL[dir]} into the doorway`
+        : `Step ${DIR_LABEL[dir]}`,
+      hint: throughDoor ? "One tile — onto the threshold" : "One tile",
+    };
+  });
+}
+
 /**
  * Rectangular room: wall perimeter, floor interior, optional doors.
  * Grid origin is top-left; +y runs "south" for readability.
@@ -111,7 +181,6 @@ export function generateSimpleRoom(options: GenerateRoomOptions = {}): RoomMap {
   let doors = options.doors;
   if (!doors || doors.length === 0) {
     const picks: Cardinal[] = ["N", "E", "S", "W"];
-    // Always one door; 40% chance of a second opposite-ish door.
     doors = [picks[Math.floor(rng() * picks.length)]!];
     if (rng() < 0.4) {
       const extra = picks[Math.floor(rng() * picks.length)]!;
@@ -119,7 +188,12 @@ export function generateSimpleRoom(options: GenerateRoomOptions = {}): RoomMap {
     }
   }
 
-  const doorKeys = new Set(doors.map((d) => key(doorCell(width, height, d).x, doorCell(width, height, d).y)));
+  const doorKeys = new Set(
+    doors.map((d) => {
+      const c = doorCell(width, height, d);
+      return key(c.x, c.y);
+    }),
+  );
   const facingByKey = new Map<string, Cardinal>();
   for (const d of doors) {
     const c = doorCell(width, height, d);
@@ -165,6 +239,7 @@ export function generateSimpleRoom(options: GenerateRoomOptions = {}): RoomMap {
     height,
     tiles,
     player,
+    facing: options.facing ?? "N",
     tileSize,
   };
 }
@@ -213,7 +288,8 @@ export function revealSemiRing(
     const dx = tile.x - origin.x;
     const dy = tile.y - origin.y;
     const dist = Math.max(Math.abs(dx), Math.abs(dy));
-    if (dist === 0 || dist > radius) return tile;
+    if (dist === 0) return { ...tile, revealed: true };
+    if (dist > radius) return tile;
 
     const forward =
       facing === "N"
@@ -224,38 +300,43 @@ export function revealSemiRing(
             ? dx < 0 || (dx === 0 && Math.abs(dy) <= radius)
             : dx > 0 || (dx === 0 && Math.abs(dy) <= radius);
 
-    // Semi-ring: forward hemisphere + immediate sides
     if (forward || dist === 1) return { ...tile, revealed: true };
     return tile;
   });
-  return { ...room, tiles };
+  return { ...room, tiles, facing };
 }
 
-/** Step player one tile if walkable; reveal a full ring afterward. */
+/**
+ * Step the player exactly one walkable tile, then reveal adjacent tiles.
+ * Standing on a door counts as travel onto that threshold tile.
+ */
 export function movePlayer(
   room: RoomMap,
   facing: Cardinal,
   revealRadius = 1,
 ): RoomMap {
-  const delta =
-    facing === "N"
-      ? { x: 0, y: -1 }
-      : facing === "S"
-        ? { x: 0, y: 1 }
-        : facing === "W"
-          ? { x: -1, y: 0 }
-          : { x: 1, y: 0 };
-
-  const next = { x: room.player.x + delta.x, y: room.player.y + delta.y };
-  const target = room.tiles.find((t) => t.x === next.x && t.y === next.y);
-  if (!target || target.kind === "wall" || target.kind === "void") {
-    return revealAround(room, room.player, revealRadius);
+  const next = stepPos(room.player, facing);
+  const target = getTile(room, next.x, next.y);
+  if (!isWalkable(target)) {
+    return { ...revealAround(room, room.player, revealRadius), facing };
   }
 
-  const withPlayer = { ...room, player: next };
+  const withPlayer: RoomMap = {
+    ...room,
+    player: next,
+    facing,
+  };
   return revealAround(withPlayer, next, revealRadius);
 }
 
 export function countRevealed(room: RoomMap): number {
   return room.tiles.filter((t) => t.revealed && t.kind === "floor").length;
+}
+
+export function describeTileUnderPlayer(room: RoomMap): string {
+  const tile = getTile(room, room.player.x, room.player.y);
+  if (tile?.kind === "door") {
+    return `You stand on the ${DIR_LABEL[tile.facing ?? room.facing]} threshold.`;
+  }
+  return `You stand on stone at ${room.player.x},${room.player.y}.`;
 }

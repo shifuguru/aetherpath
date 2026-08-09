@@ -198,6 +198,7 @@ export const WIN_DEPTH = 5;
 
 export { createOpeningSession, generateTurn, applyTurn } from "./storyEngine.js";
 export {
+  CARDINALS,
   generateSimpleRoom,
   revealAround,
   revealSemiRing,
@@ -207,6 +208,14 @@ export {
   enterRoomAtDoor,
   hashSeed,
   mulberry32,
+  travelChoices,
+  listExits,
+  parseMoveChoice,
+  moveChoiceId,
+  isWalkable,
+  getTile,
+  stepPos,
+  describeTileUnderPlayer,
   type TileKind,
   type Cardinal,
   type GridPos,

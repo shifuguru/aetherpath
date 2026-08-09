@@ -20,11 +20,11 @@ A status bar tracks HP, vault depth, and carried items live; a victory or defeat
 ## Layout
 
 ```
-Story feed (scrolls down from the top)
+Brand + tokens · HP / vault-depth / inventory status bar
 ────────────────────────────
-Holographic world (live scene)
+Holographic world (live scene) · story feed
 ────────────────────────────
-Player choices (2–4)
+Player choices (2–4) — or a victory/defeat overlay once the run ends
 ```
 
 ## Monorepo

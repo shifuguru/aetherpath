@@ -17,11 +17,10 @@ Step into a living dungeon that writes itself around your decisions, a holograph
 ```
 ┌─────────────────────────────────────┐
 │  Brand + token balance              │
-│─────────────────────────────────────│
-│  STORY FEED (scrolls from top)      │  ← narrative beats
+│  STATUS TICKER (short system line)  │  ← “+1 item found!” / “Stepped north”
 │─────────────────────────────────────│
 │                                     │
-│     HOLOGRAPHIC WORLD (real-time)   │  ← scene from AI brief
+│     HOLOGRAPHIC WORLD (real-time)   │  ← scene from AI / room map
 │                                     │
 │─────────────────────────────────────│
 │  CHOICES (2–4)                      │  ← player agency
@@ -33,6 +32,7 @@ Rules for the first playable surface:
 - One composition, not a dashboard.
 - No cards in the hero/play loop.
 - Hologram is the visual anchor (not a side image).
+- Status is a brief system ticker, not a scrolling story feed.
 - Choices are the only interaction container at the bottom.
 
 ---
