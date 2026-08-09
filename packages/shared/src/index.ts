@@ -173,11 +173,20 @@ export const ECONOMY = {
 
 export { createOpeningSession, generateTurn } from "./storyEngine.js";
 export {
+  CARDINALS,
   generateSimpleRoom,
   revealAround,
   revealSemiRing,
   movePlayer,
   countRevealed,
+  travelChoices,
+  listExits,
+  parseMoveChoice,
+  moveChoiceId,
+  isWalkable,
+  getTile,
+  stepPos,
+  describeTileUnderPlayer,
   type TileKind,
   type Cardinal,
   type GridPos,

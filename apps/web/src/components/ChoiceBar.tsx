@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function ChoiceBar({ choices, disabled, onChoose }: Props) {
-  const count = Math.min(Math.max(choices.length, 2), 4);
+  const count = Math.min(Math.max(choices.length, 1), 4);
 
   return (
     <section className="choice-pane" aria-label="Your next move">

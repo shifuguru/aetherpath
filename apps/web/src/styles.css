@@ -282,6 +282,10 @@ textarea {
   margin: 0 auto;
 }
 
+.choice-grid[data-count="1"] {
+  grid-template-columns: 1fr;
+}
+
 .choice-grid[data-count="2"] {
   grid-template-columns: 1fr 1fr;
 }
