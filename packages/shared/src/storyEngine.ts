@@ -6,12 +6,48 @@ import type {
   StoryBeat,
   StoryChoice,
 } from "./index.js";
+import {
+  countRevealed,
+  generateSimpleRoom,
+  movePlayer,
+  revealAround,
+  revealSemiRing,
+  type RoomMap,
+} from "./room.js";
 
 const FALLBACK_APPEARANCE: CharacterAppearance = {
   build: "slim",
   primary: "#1a2f3a",
   glow: "#7dffc8",
 };
+
+function openingRoom(seed: string): RoomMap {
+  // 5x5 keeps walls/doors one look-around (radius 2) away from center spawn.
+  return generateSimpleRoom({
+    id: `threshold-${seed}`,
+    seed,
+    width: 5,
+    height: 5,
+    doors: ["N", "E"],
+    reveal: "player",
+    tileSize: 1,
+  });
+}
+
+function advanceRoom(session: AdventureSession, choiceId: ChoiceId): RoomMap {
+  const base =
+    session.holo.room ??
+    openingRoom(session.seed);
+
+  if (choiceId === "look-around") {
+    return revealSemiRing(base, base.player, "N", 2);
+  }
+  if (choiceId === "move-blind") {
+    return movePlayer(base, "N", 1);
+  }
+  // Later beats widen awareness inside the same chamber.
+  return revealAround(base, base.player, Math.min(3, 1 + Math.floor(session.beats.length / 2)));
+}
 
 function sid(length = 8): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -64,46 +100,44 @@ const BRANCHES: Record<
   { beat: string; choices: StoryChoice[]; holo: HoloSceneBrief }
 > = {
   "look-around": {
-    beat: "You hold your ground. Stone knits outward in a broken crescent — three tiles, then five — and the dark yields a wet arch, a water channel, and the scrape of something patient just out of sight.",
+    beat: "You hold your ground. Stone knits outward in a broken crescent — floors, then wall faces, then a doorframe humming with cold light. Somewhere beyond the threshold, breath that is not yours waits.",
     choices: [
       { id: "call", label: "Call out into the dark" },
       { id: "knife", label: "Draw your blade and wait" },
-      { id: "retreat", label: "Ease back toward the stair" },
-      { id: "offer", label: "Offer a coin into the dark" },
+      { id: "retreat", label: "Ease back from the door" },
+      { id: "offer", label: "Offer a coin toward the threshold" },
     ],
     holo: {
       locale: "listening antechamber",
       mood: "tense",
-      props: ["water channel", "shadow shapes", "hanging chains", "semi-ring"],
+      props: ["walls", "doorframe", "semi-ring"],
       palette: {
         primary: "#0f1c24",
         secondary: "#2a4a55",
         glow: "#9ee7ff",
       },
-      focal: "a semi-ring of tiles blooming around your stillness",
+      focal: "walls and a door resolving from the fog of war",
       stage: "explore",
-      revealedTiles: 5,
     },
   },
   "move-blind": {
-    beat: "You step into black. A full ring of stone hammers into place underfoot — cold, new, still smoking with creation. Ahead, a bronze door stands ajar, breathing warm air that does not belong in a tomb.",
+    beat: "You step into black. A ring of floor hammers into place — then the chamber's walls snap up around you. Ahead, a door stands in the north wall, ajar, breathing warm air that does not belong in a tomb.",
     choices: [
       { id: "push", label: "Push the door open" },
       { id: "peek", label: "Peer through the gap" },
-      { id: "moss", label: "Harvest the phosphor moss" },
+      { id: "moss", label: "Study the phosphor seams in the wall" },
     ],
     holo: {
-      locale: "forward ring",
+      locale: "forward chamber",
       mood: "wonder",
-      props: ["spiral stair", "moss veins", "bronze door", "tile-ring"],
+      props: ["walls", "north door", "tile-ring"],
       palette: {
         primary: "#102820",
         secondary: "#1f5a44",
         glow: "#6dffb0",
       },
-      focal: "a ring of new stone and a bronze door leaking amber",
+      focal: "a revealed room ring and a north door leaking amber",
       stage: "explore",
-      revealedTiles: 9,
     },
   },
   listen: {
@@ -205,6 +239,7 @@ export function createOpeningSession(input: {
   tokensRemaining: number;
 }): AdventureSession {
   const appearance = input.appearance ?? FALLBACK_APPEARANCE;
+  const room = openingRoom(input.seed);
   const holo: HoloSceneBrief = {
     ...OPENING.holo,
     palette: {
@@ -212,6 +247,8 @@ export function createOpeningSession(input: {
       primary: appearance.primary,
       glow: appearance.glow,
     },
+    room,
+    revealedTiles: countRevealed(room),
   };
 
   const beat: StoryBeat = {
@@ -252,6 +289,7 @@ export async function generateTurn(
   // Skeleton uses authored branches + procedural fallback so the loop works offline.
   const prior = session.choices.find((c) => c.id === choiceId);
   const branch = BRANCHES[choiceId] ?? fallbackTurn(prior?.label ?? choiceId);
+  const room = advanceRoom(session, choiceId);
 
   // Mild procedural tint so repeats feel less static.
   const holo: HoloSceneBrief = {
@@ -261,6 +299,9 @@ export async function generateTurn(
       ...branch.holo.palette,
       glow: session.player.appearance?.glow ?? branch.holo.palette.glow,
     },
+    room,
+    revealedTiles: countRevealed(room),
+    stage: branch.holo.stage ?? "explore",
   };
 
   return {

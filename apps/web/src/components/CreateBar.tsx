@@ -29,9 +29,19 @@ export function CreateBar({
           <span>Name</span>
           <input
             type="text"
+            name="character-name"
             value={name}
             maxLength={24}
             placeholder="Who walks the vault?"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            inputMode="text"
+            enterKeyHint="done"
+            data-1p-ignore
+            data-lpignore="true"
+            data-form-type="other"
             onChange={(e) => onNameChange(e.target.value)}
             disabled={busy}
           />

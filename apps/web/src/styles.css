@@ -201,15 +201,28 @@ button {
   color: var(--ink-muted);
 }
 
+.create-field input,
+input[type="text"],
+input[type="search"],
+textarea {
+  /* ≥16px prevents iOS Safari zoom-on-focus during play */
+  font-size: 16px;
+  font-family: var(--font-body);
+}
+
 .create-field input {
   width: 100%;
   padding: 0.8rem 0.95rem;
   border: 1px solid var(--line);
   background: var(--choice);
   color: var(--ink);
-  font: inherit;
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.create-field input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  transition: background-color 99999s ease-out;
 }
 
 .create-field input:focus {

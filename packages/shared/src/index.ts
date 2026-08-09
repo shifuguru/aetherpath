@@ -1,5 +1,7 @@
 /** Shared contracts for Aetherpath client + API. */
 
+import type { RoomMap } from "./room.js";
+
 export type ChoiceId = string;
 
 export interface StoryChoice {
@@ -41,6 +43,8 @@ export interface HoloSceneBrief {
   stage?: "creation" | "explore" | "scene";
   /** How many floor tiles are revealed around the player (explore). */
   revealedTiles?: number;
+  /** Structured room map for the hologram renderer (walls/doors/floors). */
+  room?: RoomMap;
 }
 
 /** Visual identity chosen during player creation. */
@@ -168,3 +172,16 @@ export const ECONOMY = {
 } as const;
 
 export { createOpeningSession, generateTurn } from "./storyEngine.js";
+export {
+  generateSimpleRoom,
+  revealAround,
+  revealSemiRing,
+  movePlayer,
+  countRevealed,
+  type TileKind,
+  type Cardinal,
+  type GridPos,
+  type MapTile,
+  type RoomMap,
+  type GenerateRoomOptions,
+} from "./room.js";
