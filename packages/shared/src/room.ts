@@ -5,6 +5,19 @@ export type Cardinal = "N" | "E" | "S" | "W";
 
 export const CARDINALS: Cardinal[] = ["N", "E", "S", "W"];
 
+export function oppositeFacing(facing: Cardinal): Cardinal {
+  switch (facing) {
+    case "N":
+      return "S";
+    case "S":
+      return "N";
+    case "E":
+      return "W";
+    case "W":
+      return "E";
+  }
+}
+
 export interface GridPos {
   x: number;
   y: number;
@@ -29,6 +42,8 @@ export interface RoomMap {
   facing: Cardinal;
   /** World units between tile centers. */
   tileSize: number;
+  /** Which door the player walked in through, if any (drives move-blind direction). */
+  entryFacing?: Cardinal;
 }
 
 export interface GenerateRoomOptions {
@@ -58,7 +73,7 @@ const DIR_LABEL: Record<Cardinal, string> = {
   E: "east",
 };
 
-function hashSeed(seed: string): number {
+export function hashSeed(seed: string): number {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
@@ -67,7 +82,7 @@ function hashSeed(seed: string): number {
   return h >>> 0;
 }
 
-function mulberry32(seed: number) {
+export function mulberry32(seed: number) {
   let a = seed >>> 0;
   return () => {
     a |= 0;
@@ -227,6 +242,25 @@ export function generateSimpleRoom(options: GenerateRoomOptions = {}): RoomMap {
     facing: options.facing ?? "N",
     tileSize,
   };
+}
+
+/**
+ * Move the player to the door matching `entryFacing` (the door you just
+ * walked through, from the other side) and reveal only that threshold tile.
+ * Falls back to the room's default center spawn if no matching door exists.
+ */
+export function enterRoomAtDoor(room: RoomMap, entryFacing: Cardinal): RoomMap {
+  const doorTile = room.tiles.find(
+    (t) => t.kind === "door" && t.facing === entryFacing,
+  );
+  if (!doorTile) return room;
+
+  const player = { x: doorTile.x, y: doorTile.y };
+  const tiles = room.tiles.map((t) => ({
+    ...t,
+    revealed: t.x === player.x && t.y === player.y,
+  }));
+  return { ...room, player, tiles, entryFacing };
 }
 
 /** Reveal floor/wall/door tiles in a chebyshev radius (square ring). */

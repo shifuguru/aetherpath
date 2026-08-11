@@ -43,10 +43,19 @@ Rules for the first playable surface:
 2. AI (or skeleton engine) emits: hologram begins a faint isometric square then a holographic person drops down into that square. Player Creation;
 3. Player chooses their character's appearance or presses random to create a randomly generated character. they choose their player's name. then they can press play at the bottom.
 4. After that the Player is given a choice:
-→ a) stay still and look around (generate 1 square tile semi-ring around player to gain additional visibility of the area around them, which generates 3-5 square tiles around them. 
-→ b) move forward blindly uncovering a 1 square tile ring around them.
+→ a) stay still and look around (fully reveals the current chamber, including any doors).
+→ b) move forward blindly, uncovering a 1-tile ring around a new position.
+5. Once a door is revealed, pushing through it advances one room deeper into the vault (a procedurally generated room graph, seeded so a given seed/depth/door always resolves the same way) and rolls what's on the other side:
+   - **empty** — safe passage, flavor only.
+   - **treasure** — a random item, sometimes a healing draught.
+   - **trap** — immediate HP loss.
+   - **monster** — pauses for a **fight** (risk a wound, maybe loot) or **flee** (small guaranteed HP cost, stay in the current room) choice.
+   - **relic** — guaranteed once depth 5 is reached: claim the Aether Core and win the run.
+6. HP reaching 0 (from a trap, a lost fight, or one too many flees) ends the run in defeat. Reaching depth 5 ends it in victory. Both surface a summary overlay (depth reached, items carried) with a one-tap restart into a fresh seeded vault.
 
-Optional later loops: combat checks, inventory puzzles, reputation, multi-room maps.
+A live status bar (HP, vault depth, carried items) is shown throughout. A `packages/shared/scripts/simulate.mjs` soak test plays hundreds of seeded runs with simple bot strategies on every `pnpm test`, asserting no run can soft-lock (every run must resolve to won/lost within a turn budget) — this is how the "every room needs a way forward" and "fleeing can still kill you" balance bugs were caught during development.
+
+Later loops still open: multi-run meta-progression, richer combat (multiple monster types, weapon tiers), reputation, branching relic paths instead of a single linear depth gate.
 
 ---
 
@@ -103,9 +112,9 @@ packages/shared   Shared types (session, choices, holo brief, economy)
 
 ### M0 — Skeleton (this repo)
 
-- [ ] Offline story engine with branches
-- [ ] Token wallet + ad/purchase stubs
-- [ ] GitHub remote + CI
+- [x] Offline story engine with branches
+- [x] Token wallet + ad/purchase stubs
+- [x] GitHub remote + CI
 
 ### M1 — True AI turns
 
@@ -122,10 +131,12 @@ packages/shared   Shared types (session, choices, holo brief, economy)
 
 ### M3 — Depth
 
-- Character creation (class, flaw, relic)
-- Inventory & simple skill checks
-- Seeded “rooms” graph so revisits feel coherent
-- Share/export run transcript
+- [x] Character creation (appearance, name; class/flaw still fixed)
+- [x] Inventory & simple encounter checks (fight/flee, traps, loot, HP)
+- [x] Seeded room graph — depth + door together determine a stable outcome
+- [x] Bounded, winnable run (Aether Core at depth 5) with victory/defeat overlay + restart
+- [ ] Class/flaw variety, multiple monster types, weapon tiers
+- [ ] Share/export run transcript
 
 ### M4 — Platform
 

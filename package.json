@@ -10,7 +10,8 @@
     "dev:api": "pnpm --filter @aetherpath/api dev",
     "build": "pnpm -r run build",
     "lint": "pnpm -r run lint",
-    "typecheck": "pnpm -r run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm --filter @aetherpath/shared run test"
   },
   "engines": {
     "node": ">=20"

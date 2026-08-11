@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import {
   ECONOMY,
+  applyTurn,
   type ChooseActionRequest,
   type StartAdventureRequest,
 } from "@aetherpath/shared";
@@ -36,6 +37,10 @@ adventureRoutes.post("/choose", async (c) => {
   const session = getSession(body.sessionId);
   if (!session) return c.json({ error: "Session not found" }, 404);
 
+  if (session.status === "won" || session.status === "lost") {
+    return c.json({ error: "This run has ended. Start a new adventure." }, 409);
+  }
+
   const valid = session.choices.some((choice) => choice.id === body.choiceId);
   if (!valid && !body.customPrompt) {
     return c.json({ error: "Invalid choice" }, 400);
@@ -63,13 +68,9 @@ adventureRoutes.post("/choose", async (c) => {
   saveWallet(wallet);
 
   const turn = await generateTurn(session, body.choiceId);
-  session.beats = [...session.beats, turn.beat];
-  session.choices = turn.choices;
-  session.holo = turn.holo;
-  if (turn.player) session.player = turn.player;
-  session.tokensRemaining = wallet.tokens;
-  session.status = "active";
-  saveSession(session);
+  const next = applyTurn(session, turn);
+  next.tokensRemaining = wallet.tokens;
+  saveSession(next);
 
-  return c.json({ session, tokensSpent: cost });
+  return c.json({ session: next, tokensSpent: cost });
 });
